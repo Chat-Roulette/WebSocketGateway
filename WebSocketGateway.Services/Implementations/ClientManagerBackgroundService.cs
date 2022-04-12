@@ -37,8 +37,6 @@ namespace WebSocketGateway.Services.Implementations
 
             IActivityService activityService = scope.ServiceProvider.GetRequiredService<IActivityService>();
 
-            Console.WriteLine(activityService.GetHashCode());
-
             foreach (var clientKey in _clients.Keys.ToArray())
             {
                 var clientConnections = _clients[clientKey];

@@ -38,8 +38,10 @@ namespace WebSocketGateway.Services.Implementations
 
                 foreach (var clientConnection in clientConnections.ToArray())
                 {
-                    if (clientConnection.WebSocket.State != WebSocketState.Open)
+                    if (clientConnection.WebSocket.State != WebSocketState.Open &&
+                        clientConnection.WebSocket.State != WebSocketState.Connecting)
                     {
+                        clientConnection.WebSocket.Abort();
                         clientConnections.Remove(clientConnection);
                     }
                     else

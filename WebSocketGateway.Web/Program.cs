@@ -9,9 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
 
-builder.Services.AddSingleton<IClientService, ClientService>();
-builder.Services.AddSingleton<IActivityService, ActivityService>();
+builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IActivityService, ActivityServiceHttp>();
 builder.Services.AddSingleton<IClientManagerBackgroundService, ClientManagerBackgroundService>();
 
 builder.Services.AddQuartz((q) =>
@@ -33,7 +34,6 @@ builder.Services.AddQuartz((q) =>
             .WithCronSchedule("0/15 * * * * ?");
     });
 });
-
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var app = builder.Build();

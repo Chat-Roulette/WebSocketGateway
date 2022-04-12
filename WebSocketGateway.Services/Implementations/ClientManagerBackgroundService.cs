@@ -1,4 +1,5 @@
-﻿using System.Net.WebSockets;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Net.WebSockets;
 using WebSocketGateway.Models;
 using WebSocketGateway.Services.Abstractions;
 using WebSocketGateway.Services.Abstractions.External;
@@ -8,12 +9,12 @@ namespace WebSocketGateway.Services.Implementations
     public class ClientManagerBackgroundService : IClientManagerBackgroundService
     {
         private readonly Dictionary<Guid, IList<ClientModel>> _clients;
-        private readonly IActivityService _activityService;
+        private readonly IServiceProvider _serviceProvider;
 
-        public ClientManagerBackgroundService(IActivityService activityService)
+        public ClientManagerBackgroundService(IServiceProvider serviceProvider)
         {
             _clients = new Dictionary<Guid, IList<ClientModel>>();
-            _activityService = activityService;
+            _serviceProvider = serviceProvider;
         }
 
         public void AddClient(ClientModel client)
@@ -32,6 +33,12 @@ namespace WebSocketGateway.Services.Implementations
 
         public async Task ValidateWebSocketsConnectionAsync()
         {
+            IServiceScope scope = _serviceProvider.CreateScope();
+
+            IActivityService activityService = scope.ServiceProvider.GetRequiredService<IActivityService>();
+
+            Console.WriteLine(activityService.GetHashCode());
+
             foreach (var clientKey in _clients.Keys.ToArray())
             {
                 var clientConnections = _clients[clientKey];
@@ -46,7 +53,7 @@ namespace WebSocketGateway.Services.Implementations
                     }
                     else
                     {
-                        await _activityService.PingClientAsync(clientKey);
+                        await activityService.PingClientAsync(clientKey);
                     }
                 }
 
@@ -55,6 +62,8 @@ namespace WebSocketGateway.Services.Implementations
                     _clients.Remove(clientKey);
                 }
             }
+
+            scope.Dispose();
         }
     }
 }

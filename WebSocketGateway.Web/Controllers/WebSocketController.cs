@@ -7,7 +7,7 @@ using WebSocketGateway.Services.Abstractions.External;
 namespace WebSocketGateway.Web.Controllers
 {
     [ApiController]
-    [Route("gateway")]
+    [Route("api/gateway")]
     public class WebSocketController : ControllerBase
     {
         private readonly IClientManagerBackgroundService _clientManagerBackgoundService;
@@ -24,18 +24,32 @@ namespace WebSocketGateway.Web.Controllers
         [HttpGet("ws")]
         public async Task<IActionResult> AcceptWebSocketConnection()
         {
-            var token = HttpContext.Request.Headers["Authorization"].ToString();
+            if (!HttpContext.Request.Headers.TryGetValue("Authorization", out var stringValuesToken))
+            {
+                return Unauthorized("Authorization header required");
+            }
+
+            var token = stringValuesToken.ToString();
+
             var handler = new JwtSecurityTokenHandler();
-            var jwtSecurityToken = handler.ReadJwtToken(token);
+            JwtSecurityToken jwtSecurityToken;
 
-            var clientId = jwtSecurityToken.Claims.First((c) => c.Type == "clientId")?.ToString();
+            try
+            {
+                jwtSecurityToken = handler.ReadJwtToken(token);
+            }
+            catch (Exception)
+            {
+                return Unauthorized("Invalid Authorization header format");
+            }
 
-            if (!Guid.TryParse(clientId, out var clientIdGuid) &&
-                clientIdGuid != Guid.Empty &&
-                !await _clientService.ValidateTokenAsync(token))
+            if (!await _clientService.ValidateTokenAsync(token))
             {
                 return Unauthorized();
             }
+
+            var clientId = jwtSecurityToken.Claims.First((c) => c.Type == "clientId").Value;
+            var clientIdGuid = Guid.Parse(clientId);
 
             var ws = await HttpContext.WebSockets.AcceptWebSocketAsync();
 

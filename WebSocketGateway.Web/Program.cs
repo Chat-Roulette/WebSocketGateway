@@ -1,17 +1,30 @@
 using Quartz;
 using WebSocketGateway.Services.Abstractions;
 using WebSocketGateway.Services.Abstractions.External;
+using WebSocketGateway.Services.Configuration;
 using WebSocketGateway.Services.Implementations;
 using WebSocketGateway.Services.Implementations.External;
 
 var builder = WebApplication.CreateBuilder(args);
+var configuration = builder.Configuration as IConfiguration;
 
 // Add services to the container.
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<IClientService, ClientService>();
+// Configure External Services
+
+builder.Services.AddSingleton<IActivityServiceHttpConfiguration>((x) =>
+    configuration
+        .GetSection("ActivityServiceHttpConfiguration")
+        .Get<ActivityServiceHttpConfiguration>());
+builder.Services.AddSingleton<IClientServiceHttpConfiguration>((x) =>
+    configuration
+        .GetSection("ClientServiceHttpConfiguration")
+        .Get<ClientServiceHttpConfiguration>());
+
+builder.Services.AddScoped<IClientService, ClientServiceHttp>();
 builder.Services.AddScoped<IActivityService, ActivityServiceHttp>();
 builder.Services.AddSingleton<IClientManagerBackgroundService, ClientManagerBackgroundService>();
 

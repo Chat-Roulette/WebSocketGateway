@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System.Net.WebSockets;
+using System.Text;
+using System.Text.Json;
 using WebSocketGateway.Models;
+using WebSocketGateway.Models.RabbitMq;
 using WebSocketGateway.Services.Abstractions;
 using WebSocketGateway.Services.Abstractions.External;
 
@@ -29,6 +32,15 @@ namespace WebSocketGateway.Services.Implementations
             {
                 clientModels.Add(client);
             }
+        }
+
+        public async Task NewMessageNotificationAsync(NewMessageEvent newMessageEvent)
+        {
+            var senderId = newMessageEvent.SenderId;
+            var receiverId = newMessageEvent.ReceiverId;
+
+            await _SendNewMessageNotificationAsync(senderId, newMessageEvent);
+            await _SendNewMessageNotificationAsync(receiverId, newMessageEvent);
         }
 
         public async Task ValidateWebSocketsConnectionAsync()
@@ -62,6 +74,24 @@ namespace WebSocketGateway.Services.Implementations
             }
 
             scope.Dispose();
+        }
+
+        private async Task _SendNewMessageNotificationAsync(Guid clientId, NewMessageEvent newMessageEvent)
+        {
+            var json = JsonSerializer.Serialize(newMessageEvent);
+            var buffer = Encoding.UTF8.GetBytes(json);
+
+            _clients.TryGetValue(clientId, out var connectionsList);
+
+            var connections = connectionsList?.ToArray();
+
+            if (connections is not null)
+            {
+                foreach (var connection in connections)
+                {
+                    await connection.WebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
         }
     }
 }

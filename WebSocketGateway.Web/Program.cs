@@ -28,6 +28,10 @@ builder.Services.AddScoped<IClientService, ClientServiceHttp>();
 builder.Services.AddScoped<IActivityService, ActivityServiceHttp>();
 builder.Services.AddSingleton<IClientManagerBackgroundService, ClientManagerBackgroundService>();
 
+// Add RabbitMq Service
+
+builder.Services.AddHostedService<RabbitMqService>();
+
 builder.Services.AddQuartz((q) =>
 {
     var jobKey = new JobKey("ConnectionCheckJob");

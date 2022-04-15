@@ -13,6 +13,8 @@ namespace WebSocketGateway.Services.Implementations
     {
         private readonly IConfiguration _configuration;
         private readonly IClientManagerBackgroundService _clientManagerBackgroundService;
+        private IConnection _connection;
+        private IModel _channel;
 
         public RabbitMqService(
             IConfiguration configuration,
@@ -29,7 +31,6 @@ namespace WebSocketGateway.Services.Implementations
             return Task.CompletedTask;
         }
 
-        // [TODO] Not working on message receive
         private void _InitializeConnection()
         {
             var factory = new ConnectionFactory()
@@ -37,31 +38,37 @@ namespace WebSocketGateway.Services.Implementations
                 Uri = new Uri(_configuration.GetSection("RabbitMq")["ConnectionUri"])
             };
 
-            using (var connection = factory.CreateConnection())
-            {
-                using (var channel = connection.CreateModel())
-                {
-                    channel.QueueDeclare(queue: "new_message_queue",
-                                         durable: false,
-                                         exclusive: false,
-                                         autoDelete: false,
-                                         arguments: null);
+            _connection = factory.CreateConnection();
+            _channel = _connection.CreateModel();
 
-                    var consumer = new EventingBasicConsumer(channel);
+            _channel.ExchangeDeclare("new_message_notification", ExchangeType.Fanout);
 
-                    consumer.Received += async (model, ea) =>
-                    {
-                        var body = ea.Body.ToArray();
-                        var message = Encoding.UTF8.GetString(body);
+            var queueName = _channel.QueueDeclare().QueueName;
 
-                        Console.WriteLine(message);
+            _channel.QueueBind(queue: queueName,
+                                      exchange: "new_message_notification",
+                                      routingKey: "");
 
-                        var newMessageEvent = JsonSerializer.Deserialize<NewMessageEvent>(message);
 
-                        await _clientManagerBackgroundService.NewMessageNotificationAsync(newMessageEvent);
-                    };
-                }
-            }
+            var consumer = new EventingBasicConsumer(_channel);
+
+            consumer.Received += _handleReceivedAsync;
+
+            _channel.BasicConsume(queue: queueName,
+                                 autoAck: true,
+                                 consumer: consumer);
+        }
+
+        private void _handleReceivedAsync(object? model, BasicDeliverEventArgs ea)
+        {
+            var body = ea.Body.ToArray();
+            var message = Encoding.UTF8.GetString(body);
+
+            Console.WriteLine(message);
+
+            var newMessageEvent = JsonSerializer.Deserialize<NewMessageEvent>(message);
+
+            _clientManagerBackgroundService.NewMessageNotificationAsync(newMessageEvent);
         }
     }
 }

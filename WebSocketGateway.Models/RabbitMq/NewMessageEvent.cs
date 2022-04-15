@@ -6,6 +6,6 @@
         public Guid SenderId { get; set; }
         public Guid ReceiverId { get; set; }
         public Guid ConversationId { get; set; }
-        public DateTime DateTime { get; set; }
+        public string DateTime { get; set; }
     }
 }
